@@ -17,5 +17,7 @@ from typing import Any
 
 def build_graph(config: dict[str, Any]):
     """에이전트 그래프를 만든다."""
-    # TODO: StateGraph(AgentState), agent/tools(ToolNode) 노드, tools_condition 조건부 엣지
+    # TODO: llm = get_llm(config); vectorstore/metadata_df 로드 후 tools = build_tools(...);
+    #       agent 노드 = make_agent_node(llm.bind_tools(tools)); ToolNode(tools) 와
+    #       tools_condition 조건부 엣지로 StateGraph(AgentState) 조립
     raise NotImplementedError

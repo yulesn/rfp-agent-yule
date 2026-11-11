@@ -55,7 +55,9 @@ def test_schema_models() -> None:
     assert chunk.metadata == {}
 
 
-def test_tools_registered() -> None:
-    from rfp_agent.agent.tools import ALL_TOOLS
+def test_build_tools() -> None:
+    from rfp_agent.agent.tools import build_tools
 
-    assert {t.name for t in ALL_TOOLS} == {"search_rfp", "filter_rfps"}
+    tools = build_tools(None, None)
+    assert {t.name for t in tools} == {"search_rfp", "filter_rfps"}
+    assert all(t.description for t in tools)
