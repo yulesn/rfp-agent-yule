@@ -8,7 +8,6 @@
 """
 
 import argparse
-import hashlib
 import json
 import multiprocessing as mp
 import sys
@@ -26,7 +25,6 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from rfp_agent.config import load_config
 
-COPY_MARK = "의 사본"
 # 스캔 PDF 의심 기준: 페이지당 평균 글자 수가 이 값 미만이면 의심
 SCAN_AVG_CHARS_PER_PAGE = 50
 # 글자가 이 값 미만인 페이지가 전체의 이 비율 이상이면 의심
@@ -41,24 +39,8 @@ def nfc(s: str) -> str:
     return unicodedata.normalize("NFC", s)
 
 
-def sha256(path: Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as f:
-        for block in iter(lambda: f.read(1 << 20), b""):
-            h.update(block)
-    return h.hexdigest()
-
-
-def original_name(name: str) -> str:
-    """'xxx.hwp의 사본' / 'xxx.pdf의 사본.pdf' → 'xxx.hwp' / 'xxx.pdf'."""
-    name = nfc(name)
-    if COPY_MARK not in name:
-        return name
-    return name.split(COPY_MARK)[0]
-
-
 def kind_of(name: str) -> str:
-    base = original_name(name).lower()  # original_name 이 NFC 정규화까지 한다
+    base = nfc(name).lower()
     for ext in ("hwpx", "hwp", "pdf"):
         if base.endswith("." + ext):
             return ext
@@ -199,31 +181,15 @@ def main() -> None:
     out_dir = Path(cfg["paths"]["processed_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # ---- 1) 파일 목록 / 사본 판별
-    entries = sorted(p for p in raw_dir.iterdir() if p.is_file() and p != meta_path)
-    # macOS 파일명은 NFD 라 반드시 NFC 로 정규화한 뒤 비교한다 (docs/trials 참고)
-    originals = [p for p in entries if COPY_MARK not in nfc(p.name)]
-    copies = [p for p in entries if COPY_MARK in nfc(p.name)]
-    by_name = {nfc(p.name): p for p in originals}
+    # ---- 1) 파일 목록 (macOS 파일명은 NFD 라 비교 전에 NFC 정규화 필요, docs/trials 참고)
+    docs = sorted(p for p in raw_dir.iterdir() if p.is_file() and p != meta_path)
+    ext_count = Counter(kind_of(p.name) for p in docs)
 
-    copy_info = {"count": len(copies), "identical_to_original": 0, "differs": [], "no_original": []}
-    for c in copies:
-        o = by_name.get(original_name(c.name))
-        if o is None:
-            copy_info["no_original"].append(c.name)
-        elif c.stat().st_size == o.stat().st_size and sha256(c) == sha256(o):
-            copy_info["identical_to_original"] += 1
-        else:
-            copy_info["differs"].append(c.name)
-
-    ext_all = Counter(kind_of(p.name) for p in entries)
-    ext_orig = Counter(kind_of(p.name) for p in originals)
-
-    # ---- 2) 원본 파일 상세 분석
+    # ---- 2) 파일 상세 분석
     files: list[dict[str, Any]] = []
-    for i, p in enumerate(originals, 1):
+    for i, p in enumerate(docs, 1):
         kind = kind_of(p.name)
-        print(f"[{i}/{len(originals)}] {kind} {p.name[:40]}", file=sys.stderr, flush=True)
+        print(f"[{i}/{len(docs)}] {kind} {p.name[:40]}", file=sys.stderr, flush=True)
         rec: dict[str, Any] = {
             "name": p.name,
             "kind": kind,
@@ -240,7 +206,7 @@ def main() -> None:
     meta = inspect_metadata(df)
 
     # ---- 4) 매칭 (NFC 정규화 후 파일명 완전 일치)
-    file_names = {nfc(p.name): p.name for p in originals}
+    file_names = {nfc(p.name): p.name for p in docs}
     csv_names = {nfc(str(n)) for n in df["파일명"].dropna()}
     csv_names_list = [nfc(str(n)) for n in df["파일명"].dropna()]
     matched = csv_names & set(file_names)
@@ -257,7 +223,7 @@ def main() -> None:
         "metadata_rows": len(df),
         "metadata_unique_filenames": len(csv_names),
         "metadata_filename_duplicates": len(csv_names_list) - len(csv_names),
-        "original_files": len(originals),
+        "files": len(docs),
         "matched": len(matched),
         "csv_without_file": csv_only,
         "file_without_csv": file_only,
@@ -288,11 +254,9 @@ def main() -> None:
     hwp_fail = [f for f in hwp_files if not f.get("opens")]
     hwp_empty = [f for f in hwp_ok if f["chars_no_ws"] < 500]
     summary = {
-        "files_total": len(entries),
-        "originals": len(originals),
-        "ext_all": dict(ext_all),
-        "ext_originals": dict(ext_orig),
-        "size_mb_total_originals": round(sum(f["size_mb"] for f in files), 1),
+        "files_total": len(docs),
+        "ext_counts": dict(ext_count),
+        "size_mb_total": round(sum(f["size_mb"] for f in files), 1),
         "size_mb_max": max((f["size_mb"] for f in files), default=0),
         "size_mb_median": float(pd.Series([f["size_mb"] for f in files]).median()),
         "pdf_count": len(pdf_files),
@@ -315,7 +279,6 @@ def main() -> None:
 
     report = {
         "summary": summary,
-        "copies": copy_info,
         "metadata": meta,
         "matching": matching,
         "files": files,
@@ -327,18 +290,13 @@ def main() -> None:
 
 
 def print_summary(report: dict[str, Any], out_path: Path) -> None:
-    s, c, m, mt = report["summary"], report["copies"], report["metadata"], report["matching"]
+    s, m, mt = report["summary"], report["metadata"], report["matching"]
     print("=" * 60)
     print("RFP 데이터 탐색 요약")
     print("=" * 60)
-    print(f"[파일] 전체 {s['files_total']}개 (확장자별: {s['ext_all']})")
+    print(f"[파일] {s['files_total']}개 (확장자별: {s['ext_counts']})")
     print(
-        f"  - '의 사본' {c['count']}개 중 원본과 바이트 동일 {c['identical_to_original']}개,"
-        f" 다름 {len(c['differs'])}개, 원본 없음 {len(c['no_original'])}개"
-    )
-    print(f"  - 사본 제외 원본 {s['originals']}개: {s['ext_originals']}")
-    print(
-        f"  - 원본 용량 합계 {s['size_mb_total_originals']}MB,"
+        f"  - 용량 합계 {s['size_mb_total']}MB,"
         f" 중앙값 {s['size_mb_median']:.2f}MB, 최대 {s['size_mb_max']}MB"
     )
     print(f"[PDF] {s['pdf_count']}개, 총 {s['pdf_pages_total']}쪽")
@@ -369,7 +327,7 @@ def print_summary(report: dict[str, Any], out_path: Path) -> None:
             f" 고유 {col['n_unique']}, 예: {col['samples'][:2]}"
         )
     print(
-        f"[매칭] CSV {mt['metadata_rows']}행 ↔ 원본 파일 {mt['original_files']}개:"
+        f"[매칭] CSV {mt['metadata_rows']}행 ↔ 파일 {mt['files']}개:"
         f" 일치 {mt['matched']}, CSV에만 {len(mt['csv_without_file'])},"
         f" 파일에만 {len(mt['file_without_csv'])}"
     )
