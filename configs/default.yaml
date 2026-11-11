@@ -3,7 +3,7 @@
 
 paths:
   raw_dir: data/raw
-  metadata_file: data/raw/data_list.csv  # TODO: 실제 파일명 확인 후 수정
+  metadata_file: data/raw/data_list.csv  # 확인됨 (2026-11-11): 100행, UTF-8 BOM. '텍스트' 컬럼은 대부분 목차라 사용하지 않음 (본문은 원본 파일을 직접 파싱)
   processed_dir: data/processed
   vectorstore_dir: data/vectorstore
 
