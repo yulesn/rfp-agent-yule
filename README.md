@@ -40,10 +40,10 @@ src/rfp_agent/
   retrieval/                # 검색: 임베딩, Chroma, 청크 검색, 메타데이터 필터(pandas)
   agent/                    # LangGraph 에이전트: 상태, 프롬프트, 노드, 그래프, tools/
   evaluation/               # 평가: Hit@k/MRR, LLM-as-judge
-scripts/                    # CLI: inspect_data, build_index, ask, evaluate
+scripts/                    # CLI: build_index, ask, evaluate
 eval/                       # 평가셋 (questions.v1.jsonl)
 data/                       # raw(커밋 금지) / processed / vectorstore
-notebooks/                  # 탐색용 노트북
+notebooks/                  # 탐색용 노트북 (01_데이터탐색.ipynb)
 backend/ frontend/ infra/   # Phase 4 자리표시 (아직 시작 안 함)
 tests/                      # 스모크 테스트
 docs/                       # 계획, ADR, 대화, 시행착오, 실험 기록
@@ -52,7 +52,7 @@ docs/                       # 계획, ADR, 대화, 시행착오, 실험 기록
 ## 실행 (Phase 1 구현 후 동작)
 
 ```bash
-uv run python scripts/inspect_data.py                                  # 데이터 탐색
+# 데이터 탐색: notebooks/01_데이터탐색.ipynb 를 열어 실행 (커널은 이 레포의 .venv, 결과는 docs/research 참고)
 uv run python scripts/build_index.py --config configs/default.yaml     # 인덱스 구축
 uv run python scripts/ask.py "질문" --config configs/default.yaml      # 질의응답
 uv run python scripts/evaluate.py --config configs/default.yaml        # 평가 (Phase 2)
