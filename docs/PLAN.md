@@ -30,8 +30,8 @@
 ### Phase 1. 데이터 탐색 + 베이스라인 에이전트 (1차 목표) 🚧
 "최소한으로 끝까지 한 번 돌리기"가 목적. 품질 고도화는 Phase 5~6에서.
 1. 데이터 탐색 노트북(`notebooks/01_데이터탐색.ipynb`, 완료): 파일 형식 비율(hwp/hwpx/pdf), 페이지 수, 표 비중, 메타데이터 컬럼, 스캔 PDF 여부
-2. 최소 파서: PDF는 PyMuPDF, HWP는 가장 간단한 후보 1개로 텍스트 추출 → `data/processed/*.jsonl` (doc_id, page/section, text, 메타데이터)
-3. 고정 길이 청킹 + 로컬 임베딩 + Chroma 적재 (`scripts/build_index.py`). 메타데이터 CSV는 pandas로 로드해 문서 단위 조건 검색에 사용 (ADR 0003)
+2. 최소 파서 ✅ (2026-11-11): PDF는 PyMuPDF(표는 마크다운), HWP는 hwp-hwpx-parser 1.0.0 + 경계 검사 패치(ADR 0005) → `data/processed/documents.jsonl` / `chunks.jsonl` (`scripts/parse_documents.py`). 100건 전부 파싱, 청크 11,191개
+3. 고정 길이 청킹 ✅ (표는 통째로, 헤더 한 줄 추가) / 로컬 임베딩 + Chroma 적재 ⏳ (`scripts/build_index.py`). 메타데이터 CSV는 pandas로 로드해 문서 단위 조건 검색에 사용 (ADR 0003)
 4. LangGraph 에이전트: `START → agent ⇄ tools → END`, 도구 2개 (`search_rfp`, `filter_rfps`)
 5. CLI(`scripts/ask.py`)로 질의응답, 답변에 출처 인용
 - 완료 기준: 샘플 질문 10개에 출처 포함 답변. 그래프 구조 그림 저장.
