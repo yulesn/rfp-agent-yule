@@ -7,9 +7,16 @@ paths:
   processed_dir: data/processed
   vectorstore_dir: data/vectorstore
 
+ingest:
+  timeout_sec: 60  # 파일 1개 파싱 제한 시간(초). 넘으면 실패로 기록하고 건너뜀
+  timeout_sec_by_ext:  # 확장자별 예외 (표 탐지가 느린 큰 PDF 는 297쪽에 약 60초 걸림)
+    pdf: 300
+  workers: 4  # 동시에 파싱할 파일 수 (파일마다 별도 프로세스)
+
 chunking:
   chunk_size: 1000
   chunk_overlap: 200
+  add_header: true  # 청크 앞에 "[사업명 | 발주기관]" 한 줄을 붙인다
 
 embedding:
   provider: huggingface
