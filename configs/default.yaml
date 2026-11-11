@@ -3,7 +3,7 @@
 
 paths:
   raw_dir: data/raw
-  metadata_file: data/raw/data_list.csv  # 확인됨 (2026-11-11): 100행, UTF-8 BOM, '텍스트' 컬럼에 본문 포함
+  metadata_file: data/raw/data_list.csv  # 확인됨 (2026-11-11): 100행, UTF-8 BOM. '텍스트' 컬럼은 본문 일부(요약)라 색인에 쓰지 않음
   processed_dir: data/processed
   vectorstore_dir: data/vectorstore
 
